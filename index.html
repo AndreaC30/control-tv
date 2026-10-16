@@ -7,11 +7,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Mando TV</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icon-192.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <style>
     :root {
-      color-scheme: dark;
+      color-scheme: light;
       --bg: #121418;
       --text: #1c2128;
       --muted: #3a424c;
@@ -109,7 +110,48 @@
     .tv strong { display: block; }
     .tv span { color: var(--muted); font-size: 13px; }
     .tv .row { margin-top: 8px; }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0b0d10;
+      --text: #e7eaee;
+      --muted: #b7c0c8;
+      --on: #8ed0c2;
+      --off: #f0a8a2;
+      --metal: linear-gradient(180deg, #4c555f 0%, #2a3038 58%, #1a1e24 100%);
+      --metal-card: linear-gradient(165deg, #3c4450 0%, #242a31 48%, #14181d 100%);
+    }
+    html[data-theme="dark"] main,
+    html[data-theme="dark"] dialog {
+      border-color: rgba(255, 255, 255, 0.16);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 18px 40px rgba(0, 0, 0, 0.45);
+    }
+    html[data-theme="dark"] button {
+      border-color: #12161b;
+      color: var(--text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 1px 1px rgba(0, 0, 0, 0.4);
+    }
+    html[data-theme="dark"] button:hover {
+      background: linear-gradient(180deg, #5c6672 0%, #343b44 58%, #222830 100%);
+    }
+    html[data-theme="dark"] button:active {
+      background: linear-gradient(180deg, #1a1e24 0%, #3a424c 100%);
+    }
+    html[data-theme="dark"] input,
+    html[data-theme="dark"] select {
+      background: #1a1e24;
+      border-color: #3a424c;
+      color: var(--text);
+    }
+    html[data-theme="dark"] .tv { border-top-color: rgba(255, 255, 255, 0.12); }
   </style>
+  <script>
+    (function () {
+      var saved = localStorage.getItem("theme");
+      var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+    })();
+  </script>
 </head>
 <body>
   <main>
@@ -118,6 +160,7 @@
         <h1 id="tv-name">Mando</h1>
         <div id="status">Conectando…</div>
       </div>
+      <button type="button" id="theme">Oscuro</button>
       <button type="button" id="open-settings">Ajustes</button>
     </header>
     <p class="about">Mando para Samsung Smart TV con Tizen, de 2016 en adelante. No sirve en LG, Sony ni Roku.</p>
@@ -483,6 +526,18 @@
       installNote.textContent = "En Chrome o Edge, el icono de instalar está en la barra de direcciones. En Safari: Compartir y Añadir al Dock. Es la app de este ordenador, no un APK.";
     });
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+
+    const themeBtn = document.querySelector("#theme");
+    function paintTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      localStorage.setItem("theme", theme);
+      themeBtn.textContent = theme === "dark" ? "Claro" : "Oscuro";
+      document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#14181d" : "#1c2128";
+    }
+    paintTheme(document.documentElement.dataset.theme || "light");
+    themeBtn.addEventListener("click", () => {
+      paintTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+    });
 
     poll();
     renderApps();

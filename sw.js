@@ -1,4 +1,4 @@
-const CACHE = "mando-v7";
+const CACHE = "mando-v10";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
