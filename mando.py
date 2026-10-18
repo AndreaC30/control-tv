@@ -8,7 +8,6 @@ config.json, en esta carpeta, y no salen del ordenador.
 import asyncio
 import base64
 import json
-import os
 import re
 import socket
 import ssl
@@ -293,50 +292,13 @@ def wake(mac: str, ip: str):
         sock.sendto(packet, (broadcast, 9))
 
 
-class AgentRemote:
-    """Manda las órdenes al agente en casa (la tele no es alcanzable desde el VPS)."""
-
-    def __init__(self, server, ip: str, token: str, tv_id: str, remember):
-        self.server = server
-        self.connected = False
-        self.error = "Conectando…"
-        server.set_token_callback(lambda t: remember(tv_id, t))
-        res = server.call("session_start", {"ip": ip, "token": token}, timeout=25)
-        self.connected = bool(res.get("connected"))
-        self.error = res.get("error") or ""
-
-    def key(self, key: str):
-        self.server.call("key", {"key": key}, timeout=10)
-
-    def app(self, app_id: str):
-        self.server.call("app", {"app_id": app_id}, timeout=10)
-
-    def list_installed(self) -> list:
-        res = self.server.call("installed", {}, timeout=20)
-        return res.get("apps", [])
-
-    def close(self):
-        try:
-            self.server.call("session_stop", {}, timeout=5)
-        except Exception:
-            pass
-
-
 class Hub:
     def __init__(self):
         self.lock = threading.Lock()
         self.path = ROOT / "config.json"
         self.data = self._load()
-        self.remote: Samsung | AgentRemote | None = None
+        self.remote: Samsung | None = None
         self.start_active()
-
-    def _agent_mode(self) -> bool:
-        return bool(os.environ.get("AGENT_TOKEN"))
-
-    def _agent(self):
-        from agent_server import registry
-
-        return registry
 
     def _load(self) -> dict:
         if self.path.exists():
@@ -384,12 +346,6 @@ class Hub:
         def remember(token, saved_id=tv_id):
             self.remember_token(saved_id, token)
 
-        if self._agent_mode():
-            agent = self._agent()
-            if not agent.is_connected():
-                return
-            self.remote = AgentRemote(agent, tv["ip"], tv["token"], tv_id, self.remember_token)
-            return
         self.remote = Samsung(tv["ip"], tv["token"], on_token=remember)
 
     def remember_token(self, tv_id: str, token: str):
@@ -403,13 +359,6 @@ class Hub:
         tv = self.active()
         if not tv:
             return {"connected": False, "error": "Añade una tele en Ajustes", "name": "Mando", "brand": ""}
-        if self._agent_mode() and not self._agent().is_connected():
-            return {
-                "connected": False,
-                "error": "Enciende el agente en casa (home_agent.py)",
-                "name": tv["name"],
-                "brand": tv.get("brand", ""),
-            }
         if not tv.get("token"):
             return {
                 "connected": False,
@@ -417,22 +366,6 @@ class Hub:
                 "name": tv["name"],
                 "brand": tv["brand"],
             }
-        if self._agent_mode() and self._agent().is_connected():
-            try:
-                res = self._agent().call("status", {}, timeout=8)
-                return {
-                    "connected": bool(res.get("connected")),
-                    "error": res.get("error") or "",
-                    "name": tv["name"],
-                    "brand": tv["brand"],
-                }
-            except Exception as exc:
-                return {
-                    "connected": False,
-                    "error": str(exc),
-                    "name": tv["name"],
-                    "brand": tv["brand"],
-                }
         remote = self.remote
         return {
             "connected": bool(remote and remote.connected),
@@ -494,13 +427,7 @@ class Hub:
         if self.remote:
             self.remote.close()
             self.remote = None
-        if self._agent_mode():
-            if not self._agent().is_connected():
-                raise ConnectionError("Enciende el agente en casa (home_agent.py)")
-            res = self._agent().call("pair", {"ip": ip}, timeout=55)
-            token = res["token"]
-        else:
-            token = asyncio.run(pair_samsung(ip))
+        token = asyncio.run(pair_samsung(ip))
         self.remember_token(tv_id, token)
         self.start_active()
 
@@ -518,11 +445,6 @@ class Hub:
         tv = self.active()
         if not tv or not tv.get("mac"):
             raise ValueError("Esa tele no tiene MAC. Añádela en Ajustes para poder encenderla.")
-        if self._agent_mode():
-            if not self._agent().is_connected():
-                raise ConnectionError("Enciende el agente en casa (home_agent.py)")
-            self._agent().call("wake", {"mac": tv["mac"], "ip": tv["ip"]}, timeout=10)
-            return
         wake(tv["mac"], tv["ip"])
 
     def apps_view(self) -> dict:
@@ -653,15 +575,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    if os.environ.get("AGENT_TOKEN"):
-        from agent_server import registry
-
-        registry.start()
     Handler.hub = Hub()
-    if os.environ.get("AGENT_TOKEN"):
-        from agent_server import registry
-
-        registry.set_on_connect(Handler.hub.start_active)
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     url = f"http://127.0.0.1:{PORT}"
     webbrowser.open(url)
