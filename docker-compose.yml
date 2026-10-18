@@ -1,0 +1,23 @@
+services:
+  mando:
+    build: .
+    container_name: control-tv-mando
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+    expose:
+      - "8765"
+      - "8766"
+    volumes:
+      - ./config.json:/app/config.json
+    networks:
+      backend:
+        aliases:
+          - control-tv-mando
+
+networks:
+  backend:
+    external: true
+    name: gastodehoy_backend

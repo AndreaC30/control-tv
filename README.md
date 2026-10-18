@@ -51,8 +51,21 @@ Al arrancar se crea `config.json` en esta carpeta. Ahí están el nombre, la IP,
 
 Apagar envía el botón de encendido de la tele. Encender manda un aviso por la red a la MAC que guardaste. En muchas teles Samsung hay que activar antes, en la red, la opción de encender con el móvil. Por Wi-Fi a menudo no responde, porque la tele apagada deja de escuchar. Por cable de red es más fiable.
 
+## mandotv.kyadigital.es (web en internet + agente en casa)
+
+La interfaz puede estar en un servidor, pero **las órdenes a la tele las manda un agente en tu Wi‑Fi**. En un PC o Raspberry de la misma red que la Samsung:
+
+```bash
+cd control-tv
+source .venv/bin/activate   # tras pip install -r requirements.txt
+export MANDO_AGENT_URL='wss://mandotv.kyadigital.es/agent/ws'
+export MANDO_AGENT_TOKEN='el-token-que-te-den'   # no lo publiques
+python3 home_agent.py
+```
+
+Deja esa terminal abierta. Luego abre https://mandotv.kyadigital.es, configura la tele y pulsa **Permitir**.
+
 ## Qué no hace este programa
 
-- No se instala en un VPS para controlar teles ajenas. Cada casa ejecuta su copia.
-- No guarda los datos de otras personas en ningún servidor.
-- No abre la tele a internet. Solo responde en este ordenador.
+- No controla teles fuera de tu red sin el agente en casa.
+- No guarda los datos de otras personas en ningún servidor compartido.
