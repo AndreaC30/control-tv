@@ -4,12 +4,19 @@
 import asyncio
 import json
 import os
+import ssl
 import sys
 from urllib.parse import urlencode
 
+import certifi
 import websockets
 
 from mando import Samsung, pair_samsung, wake
+
+
+def tls_context() -> ssl.SSLContext:
+    """CA de certifi: en macOS el Python de python.org suele no traer certificados."""
+    return ssl.create_default_context(cafile=certifi.where())
 
 
 class LocalSession:
@@ -66,7 +73,12 @@ async def run():
     while True:
         try:
             print(f"Conectando a {base}…", flush=True)
-            async with websockets.connect(url, ping_interval=20, ping_timeout=20) as ws:
+            async with websockets.connect(
+                url,
+                ssl=tls_context(),
+                ping_interval=20,
+                ping_timeout=20,
+            ) as ws:
                 print("Agente en linea. Deja este programa abierto.", flush=True)
 
                 def on_token(t):
